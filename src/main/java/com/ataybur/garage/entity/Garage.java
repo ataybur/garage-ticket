@@ -45,4 +45,12 @@ public class Garage {
         this.slot = slot;
     }
 
+    @Override
+    public String toString() {
+        return "Garage{" +
+                "id=" + id +
+                ", vehicle=" + vehicle +
+                ", slot=" + slot +
+                '}';
+    }
 }

@@ -44,4 +44,13 @@ public class VehicleType {
     public void setSlotHoldingCount(int slotHoldingCount) {
         this.slotHoldingCount = slotHoldingCount;
     }
+
+    @Override
+    public String toString() {
+        return "VehicleType{" +
+                "id=" + id +
+                ", type='" + type + '\'' +
+                ", slotHoldingCount=" + slotHoldingCount +
+                '}';
+    }
 }

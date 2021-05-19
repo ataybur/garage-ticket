@@ -1,7 +1,7 @@
 package com.ataybur.garage.exception;
 
 public class GarageIsFullException extends RuntimeException {
-    GarageIsFullException() {
+    public GarageIsFullException() {
         super("Garage is full");
     }
 }

@@ -24,7 +24,6 @@ public class GarageServiceImpl implements GarageService {
     private final static int GARAGE_TOTAL_SLOT = 10;
     private final static int SLOT_TO_NEXT_ONE = 1;
     private final static int FIRST_SLOT = 1;
-    private final static int GARAGE_HAS_NO_PROPER_SLOT = -1;
 
     private final VehicleRepository vehicleRepository;
 
@@ -34,7 +33,7 @@ public class GarageServiceImpl implements GarageService {
 
     private final VehicleService vehicleService;
 
-    GarageServiceImpl(VehicleRepository vehicleRepository, GarageRepository garageRepository,VehicleTypeRepository vehicleTypeRepository,VehicleService vehicleService) {
+    GarageServiceImpl(VehicleRepository vehicleRepository, GarageRepository garageRepository, VehicleTypeRepository vehicleTypeRepository, VehicleService vehicleService) {
         this.vehicleRepository = vehicleRepository;
         this.garageRepository = garageRepository;
         this.vehicleTypeRepository = vehicleTypeRepository;
@@ -50,29 +49,55 @@ public class GarageServiceImpl implements GarageService {
 
         VehicleType vehicleType = vehicleTypeRepository.findByType(vehicle.getVehicleType())
                 .orElseThrow(() -> new VehicleTypeNotFoundException(vehicle.getVehicleType()));
-        for(int i = 1;i<vehicleType.getSlotHoldingCount();i++){
+        for (int i = 1; i < vehicleType.getSlotHoldingCount(); i++) {
             stringBuilder.append(",");
-            stringBuilder.append(i+garage.getSlot());
+            stringBuilder.append(i + garage.getSlot());
         }
         stringBuilder.append("]");
         return stringBuilder.toString();
     }
 
+
     @Override
     public int park(Vehicle vehicle) {
-        List<Garage> garageList = garageRepository.findAll(Sort.by(Sort.Direction.ASC, "slot"));
-        final String vehicleTypeName = vehicle.getVehicleType();
-        VehicleType vehicleType = vehicleTypeRepository.findByType(vehicleTypeName)
-                .orElseThrow(() -> new VehicleTypeNotFoundException(vehicleTypeName));
-        final int vehicleSlot = vehicleType.getSlotHoldingCount();
+        final int vehicleSlot = getVehicleSlots(vehicle);
+        final List<Integer> blockedSlots = isGarageAvailable(vehicleSlot);
+        final int slot = calculateAvailableSlot(blockedSlots, vehicleSlot);
+        Vehicle vehicleSaved = vehicleRepository.save(vehicle);
+        garageRepository.save(new Garage(vehicleSaved, slot));
+        return vehicleSlot;
+    }
+
+    @Override
+    public void leave(Long vehicleId) {
+        vehicleRepository
+                .findById(vehicleId)
+                .orElseThrow(() -> new TicketNotFoundException(vehicleId));
+        garageRepository.deleteByVehicleId(vehicleId);
+    }
+
+    @Override
+    public List<Garage> getAll() {
+        return garageRepository.findAll(Sort.by(Sort.Direction.ASC, "slot"));
+    }
+
+    @Override
+    public List<String> printSlots(List<Garage> garageList) {
+        final List<String> slots = new ArrayList<>();
+        for (Garage garage : garageList) {
+            slots.add(print(garage));
+        }
+        return slots;
+    }
+
+    private List<Integer> isGarageAvailable(final int vehicleSlot) {
+        List<Garage> garageList = getAll();
         final int requiredSlot = vehicleSlot + SLOT_TO_NEXT_ONE;
         List<Integer> blockedSlots = new ArrayList<>();
         for (Garage garage : garageList) {
-            final String garageVehicleTypeName = garage.getVehicle().getVehicleType();
-            VehicleType heldVehicleType = vehicleTypeRepository.findByType(garageVehicleTypeName)
-                    .orElseThrow(() -> new VehicleTypeNotFoundException(garageVehicleTypeName));
+            final int heldVehicleTypeSlots = getVehicleSlots(garage.getVehicle());
             blockedSlots.add(garage.getSlot());
-            for (int i = FIRST_SLOT; i <= heldVehicleType.getSlotHoldingCount(); i++) {
+            for (int i = FIRST_SLOT; i <= heldVehicleTypeSlots; i++) {
                 blockedSlots.add(garage.getSlot() + i);
             }
         }
@@ -80,7 +105,17 @@ public class GarageServiceImpl implements GarageService {
         if (GARAGE_TOTAL_SLOT < (blockedSlots.size() + requiredSlot)) {
             throw new GarageIsFullException();
         }
-        int slot = GARAGE_HAS_NO_PROPER_SLOT;
+        return blockedSlots;
+    }
+
+    private int getVehicleSlots(Vehicle vehicle) {
+        final String vehicleTypeName = vehicle.getVehicleType();
+        VehicleType vehicleType = vehicleTypeRepository.findByType(vehicleTypeName)
+                .orElseThrow(() -> new VehicleTypeNotFoundException(vehicleTypeName));
+        return vehicleType.getSlotHoldingCount();
+    }
+
+    private int calculateAvailableSlot(final List<Integer> blockedSlots, final int vehicleSlot) {
         for (int i = FIRST_SLOT; i < GARAGE_TOTAL_SLOT; i++) {
             if (!blockedSlots.contains(i)) {
                 int required = i + vehicleSlot;
@@ -92,38 +127,11 @@ public class GarageServiceImpl implements GarageService {
                     }
                 }
                 if (thereIsAProperSlot) {
-                    slot = i;
-                    break;
+                    return i;
                 }
             }
 
         }
-        if (slot == GARAGE_HAS_NO_PROPER_SLOT) {
-            throw new GarageHasNoProperSlotsException();
-        }
-
-        Vehicle vehicleSaved = vehicleRepository.save(vehicle);
-        garageRepository.save(new Garage(vehicleSaved, slot));
-        return vehicleSlot;
-    }
-
-    @Override
-    public String status() {
-        List<Garage> garageList = garageRepository.findAll(Sort.by(Sort.Direction.ASC, "slot"));
-        StringBuilder status = new StringBuilder("Status");
-        status.append(System.lineSeparator());
-        for (Garage garage : garageList) {
-            status.append(System.lineSeparator());
-            status.append(print(garage));
-        }
-        return status.toString();
-    }
-
-    @Override
-    public void leave(Long vehicleId) {
-        vehicleRepository
-                .findById(vehicleId)
-                .orElseThrow(() -> new TicketNotFoundException(vehicleId));
-        garageRepository.deleteByVehicleId(vehicleId);
+        throw new GarageHasNoProperSlotsException();
     }
 }
