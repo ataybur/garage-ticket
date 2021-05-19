@@ -4,6 +4,9 @@ Automated Ticketing System For A Garage
 ### Written With 
 Java-8, SpringBoot, H2 DB
 
+### Postman Collection Link
+https://www.getpostman.com/collections/a29236a082991e5a275a
+
 ## Get Status
 
 ### Request
