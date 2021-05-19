@@ -1,6 +1,9 @@
 # garage-ticket REST API
 Automated Ticketing System For A Garage
 
+### Written With 
+Java-8, SpringBoot, H2 DB
+
 ## Get Status
 
 ### Request
